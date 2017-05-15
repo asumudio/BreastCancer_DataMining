@@ -6,7 +6,7 @@ output:
   pdf_document: default
 ---
 
-#Executive Summary
+# Executive Summary
 
 Within the U.S., there are roughly 1 out of 8 women (12%) will develop 
 invasive breast cancer. And in the healthcare industry it is crucial to 
@@ -30,17 +30,19 @@ than 500,000 annual deaths from cancer (malignant tumors). This compares to a
 death rate from benign tumors of 2.534% and a rate of 97.465% for tumors
 that are cancerous. 
 
-#Introduction
+# Introduction
 
 Determine whether a tumor is benign or malignant. If the tumor is benign, then it is not cancerous and therefore can be removed. If it is malignant, then the tumor is cancerous and has already spread throughout the body and to other organs. This data set is interesting because I feel I am contributing to something important. I received my data from UCI Machine Learning Repository. Helping physicians become more efficient with their results for their patients and possibly save some lives is very rewarding. I plan to help physicians become more efficient by providing a model with the least test error rate. I plan to use the KNN, Decision Tree, and Random Forest models to determine which would provide the least test error rate. 
 
 
-##Research Question
+
+
+# Research Question
 
 Creating a model to predict the breast cancer type: Benign or Malignant, 
 based on a set of nine attributes. 
 
-##Intent
+## Intent
 
 The analysis is classification type and the models used would be:
 
@@ -150,7 +152,7 @@ b$`Bare_Nuclei` <- as.numeric(b$`Bare_Nuclei`)
 ```
 Here I cleaned up the remaining data due to there being some missing values in the variable Bare Nuclei. 
 
-#Exploratory Analysis
+# Exploratory Analysis
 
 ```{r}
 #Viewing the number of Benign and Malignant cases from all Obs
@@ -160,7 +162,7 @@ prop.table(table(b$Class))
 ```
 I provided the number of benign (2) and malignant (4) variables in the data set and provided the percentage of each. 
 
-###PCA
+### PCA
 
 ```{r}
 pca_res <- prcomp(b[,3:ncol(b)], center = TRUE, scale. = TRUE)
@@ -259,20 +261,20 @@ grid_arrange_shared_legend(a1, a2, a3, a4, a5, a6, a7, a8, nrow = 4)
 
 ```
 
-###Clump_Thickness
+### Clump_Thickness
 
 Benign cells tend to be grouped in mono-layers, while 
 cancerous cells are often grouped in multilayers.
 We can see that the number of people that had multilayers (greater 
 Clump_Thickness) resulted in having cancerous cells (malignant). 
 
-###Uniformity of cell size/shape
+### Uniformity of cell size/shape
 
 Cancer cells tend to vary in size and shape. That is why these parameters are valuable in determining whether the cells are cancerous or not.
 We can see that the the bigger the cell size the more cancerous they are.
 The smaller the cell size, the more benign the results were. 
 
-###Marginal adhesion
+### Marginal adhesion
 
 Normal cells tend to stick together. Cancer cells 
 tend to loose this ability. So loss of adhesion is a sign of 
@@ -285,27 +287,27 @@ I'm assuming that the reason why the Marginal Adhesion on the scale of
 (1) was malignant was because other variables were more cancerous than
 Marginal Adhesion in this case.
 
-###Single epithelial cell size
+### Single epithelial cell size
 
 Is related to the uniformity mentioned 
 above. Epithelial cells that are significantly enlarged may be a 
 malignant cell. We can see that on a scale of 1-10, the larger the Epithelial cells are (5-10 on the scale) the more likely they are malignant.
 
-###Bare_Nuclei
+### Bare_Nuclei
 
 If an atom is deprived of all its extra nuclear electrons 
 orbiting around the nucleus then it is referred as bare nucleus.
 We can see those that were tested that had a higher lack of these extra 
 nuclear electrons, resulted in higher Bare_Nuclei.
 
-###Bland Chromatin
+### Bland Chromatin
 
 Describes a uniform "texture" of the nucleus seen 
 in benign cells. In cancer cells the chromatin tends to be coarser.
 We can see that the coarser cells (5-10 on the scale) are malignant 
 than those that are more uniform.
 
-###Normal nucleoli
+### Normal nucleoli
 
 Nucleoli are small structures seen in the nucleus. 
 In normal cells the nucleolus is usually very small if visible at all. 
@@ -333,7 +335,7 @@ corrplot(corr_mat)
 
 Here we can visually see the correlation between each of the variables. This helps determine if one variable results in a tumor being malignant and is highly correlated with another variable, then that other variable is most likely to result in a tumor being cancerous as well. 
 
-#Running Models
+# Running Models
 
 
 ```{r}
@@ -370,7 +372,7 @@ dim(Ytest)
 ```
 Here I separated the data set into a training set and a test set. This is a base to have each of the models done below run the test set through and therefore we then can see the test error rate for each of the models. 
 
-##Knn
+## Knn
 
 
 ```{r}
@@ -394,7 +396,7 @@ roc.knn <- data.frame(fpr=unlist(knn.perf@x.values), tpr=unlist(knn.perf@y.value
 ```
 In pattern recognition, the k-nearest neighbors algorithm (k-NN) is a non-parametric method used for classification and regression.In both cases, the input consists of the k closest training examples in the feature space. The output depends on whether k-NN is used for classification or regression Test Error Rate. Based on the KNN model, we had a test error rate of: .04678363
 
-##ROC Curve KNN
+## ROC Curve KNN
 
 
 ```{r}
@@ -404,7 +406,7 @@ ggplot(data = roc.knn, aes(x = fpr, ymin = 0, ymax = tpr)) + ggtitle("Knn ROC Cu
 
 Here is our ROC curve for our KNN model. The curve is created by plotting the true positive rate (TPR) against the false positive rate (FPR) at various threshold settings. Basically the more area below the curve the better. Here we see that the KNN model .
 
-##Decision Trees Process
+## Decision Trees Process
 
 
 ```{r}
@@ -448,11 +450,11 @@ ggplot(roc.data, aes(x=fpr, ymin=0, ymax=tpr)) +
   ggtitle(paste0("Decision Tree ROC Curve w/ AUC=", round(auc.dt, digits = 3)))
 #AUC:Area Under the Curve
 ```
-###Decision Tree Results
+### Decision Tree Results
 
 A decision tree is a decision support tool that uses a tree-like graph or model of decisions and their possible consequences, including chance event outcomes, resource costs, and utility. It is one way to display an algorithm. Based on this model, the top three most important variables are: Uniformity of Cell size, Uniformity of Cell Shape, and Bare Nuclei.Also observed is the test error rate: 0.03515625
 
-##Random Forest
+## Random Forest
 
 
 ```{r}
@@ -502,7 +504,7 @@ plot(p1)
 rf1
 ```
 
-##RF ROC Process
+## RF ROC Process
 
 
 ```{r}
