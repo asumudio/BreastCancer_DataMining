@@ -1,0 +1,566 @@
+---
+title: "Applying Data Mining for the Analysis of Breast Cancer"
+author: "Ashley Sumudio"
+date: "March 19, 2017"
+output:
+  pdf_document: default
+---
+
+#Executive Summary
+
+Within the U.S., there are roughly 1 out of 8 women (12%) will develop 
+invasive breast cancer. And in the healthcare industry it is crucial to 
+understand what causes breast cancer to become malignant. To help with 
+the healthcare industry, creating a model that provides an accurate 
+prediction or a minimal error rate that determines whether the 
+cancer is benign or malignant with help their efficiency tremendously. 
+Within this project, I am trying to determine whether breast cancer is
+benign or malignant by using 3 different models (KNN, Decision Tree, and Random Forest). I am able to determine this base on the attributes given. There are nine significant attributes that I will use to determine whether the cancer is benign or malignant. I will do so by finding the most important attributes which will 
+can help the physicians determine their diagnosis more accurately. 
+
+Each of the models I use to predict the result will determine if the 
+cancer is benign or malignant. Benign refers to a tumor that is not 
+cancerous. This is because the tumor is contained in one spot and has 
+not yet spread. Also, a benign tumor can be removed and usually will never
+come back. Malignant refers to a tumor that is cancerous because it has spread throughout the body. Because it has spread, that means the cancer cells have damaged tissue and organs near the tumor. 
+
+However, although benign tumors are mostly harmless, they cause more 
+than 13,000 annual deaths in the USA, which can be compared to more 
+than 500,000 annual deaths from cancer (malignant tumors). This compares to a 
+death rate from benign tumors of 2.534% and a rate of 97.465% for tumors
+that are cancerous. 
+
+#Introduction
+
+Determine whether a tumor is benign or malignant. If the tumor is benign, then it is not cancerous and therefore can be removed. If it is malignant, then the tumor is cancerous and has already spread throughout the body and to other organs. This data set is interesting because I feel I am contributing to something important. I received my data from UCI Machine Learning Repository. Helping physicians become more efficient with their results for their patients and possibly save some lives is very rewarding. I plan to help physicians become more efficient by providing a model with the least test error rate. I plan to use the KNN, Decision Tree, and Random Forest models to determine which would provide the least test error rate. 
+
+
+##Research Question
+
+Creating a model to predict the breast cancer type: Benign or Malignant, 
+based on a set of nine attributes. 
+
+##Intent
+
+The analysis is classification type and the models used would be:
+
+  -K-Nearest Neighbor
+  -Decision Trees
+  -Random Forest
+
+Finally, the right model chosen for our prediction will be based on 
+the highest accuracy from the above models. I plan to use ROC curves to estimate which model is best.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(dplyr)
+library(bmp)
+library(ISLR)
+library(class)
+library(ggplot2)
+library(caret)
+library(ROCR)
+library(cluster)
+library(pander)
+library(corrplot)
+library(tidyr)
+library(gridExtra)
+library(grid)
+library(pcaGoPromoter)
+library(ellipse)
+library(devtools)
+library(ggbiplot)
+library(GGally)
+library(rpart.plot)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+library(pROC)
+library(MASS)
+library(ranger)
+```
+
+
+```{r}
+setRepositories(ind = 1:12)
+```
+
+
+```{r}
+#Importing Data
+b = read.csv("BreastCancer.data", header = F, stringsAsFactors = F)
+
+#Viewing Variables of Data
+head(b)
+str(b)
+```
+Here I am viewing the variables within the data set.
+
+```{r}
+#Renaming the Variables
+#Attributes 2 through 10 have been used to represent instances.
+#Each instance has one of 2 possible classes: benign or malignant.
+
+names(b)[1] = "ID Number"
+names(b)[2] = "Clump_Thickness"
+names(b)[3] = "Unif_of_Cell_Size"
+names(b)[4] = "Unif_of_Cell_Shape"
+names(b)[5] = "Marg_Adhesion"
+names(b)[6] = "Single_Epithelial_Cell_Size"
+names(b)[7] = "Bare_Nuclei"
+names(b)[8] = "Bland_Chromatin"
+names(b)[9] = "Normal_Nucleoli"
+names(b)[10] = "Mitosis"
+names(b)[11] = "Class"
+head(b)
+
+summary(b$Class)
+#Benign: 444 (65%)
+#Malignant: 239 (35%)
+```
+I have renamed my variables based on what UCI Machine Learning Repository had given. I also provided the rates at which the results were benign or malignant based on the summary of the data. 
+
+```{r}
+colnames(b)
+str(b)
+```
+Here I am viewing the renamed variables and cleaning up the data due to not all variables being numeric.
+
+```{r}
+#Removes the first variable because those are just ID's
+b = b[-1]
+head(b)
+```
+I removed the first variable because it was just the ID Number of each patient. 
+
+```{r}
+#Bare_Nuclei was the only column that had "?" so I removed them 
+b$`Bare_Nuclei`[b$`Bare_Nuclei` == '?'] <- NA
+
+b <- na.omit(b)
+b$`Bare_Nuclei` <- as.numeric(b$`Bare_Nuclei`)
+```
+Here I cleaned up the remaining data due to there being some missing values in the variable Bare Nuclei. 
+
+#Exploratory Analysis
+
+```{r}
+#Viewing the number of Benign and Malignant cases from all Obs
+table(b$Class)
+#Percentage of each Response Variable
+prop.table(table(b$Class))
+```
+I provided the number of benign (2) and malignant (4) variables in the data set and provided the percentage of each. 
+
+###PCA
+
+```{r}
+pca_res <- prcomp(b[,3:ncol(b)], center = TRUE, scale. = TRUE)
+plot(pca_res, type="l")
+
+summary(pca_res)
+```
+Doing the PCA (Principal Component Analysis) shows that the first 2 variables explain 77% of the variance.  
+
+```{r}
+#Graphs for each variable displayed onto one page
+b1 = ggplot(data = b, 
+  aes(x = Class, y = 'Clump Thickness', col = factor(Class))) + 
+       geom_point() + geom_jitter() + ggtitle("Clump Thickness")
+b2 = ggplot(data = b, 
+  aes(x = Class, y = 'Unif of Cell Size', col = factor(Class))) + 
+       geom_point() + geom_jitter() + ggtitle("Unif of Cell Size")
+b3 = ggplot(data = b, 
+  aes(x = Class, y = 'Unif of Cell Shape', col = factor(Class))) + 
+       geom_point() + geom_jitter() + ggtitle("Unif of Cell Shape")
+b4 = ggplot(data = b, 
+  aes(x = Class, y = 'Marginal Adhesion', col = factor(Class))) + 
+       geom_point() + geom_jitter() + ggtitle("Marginal Adhesion")
+b5 = ggplot(data = b, 
+  aes(x = Class, y = 'Single Epith Cell Size', col = factor(Class))) + 
+       geom_point() + geom_jitter() + ggtitle("Single Epith Cell Size")
+b6 = ggplot(data = b, 
+  aes(x = Class, y = 'Bare_Nuclei', col = factor(Class))) + 
+       geom_point() + geom_jitter() + ggtitle("Bare_Nuclei")
+b7 = ggplot(data = b, 
+  aes(x = Class, y = 'Bland Chromatin', col = factor(Class))) + 
+       geom_point() + geom_jitter() + ggtitle("Bland Chromatin")
+b8 = ggplot(data = b, 
+  aes(x = Class, y = 'Normal Nucleoli', col = factor(Class))) + 
+       geom_point() + geom_jitter() + ggtitle("Normal Nucleoli")
+
+grid_arrange_shared_legend <- function(...) {
+  plots <- list(...)
+  g <- ggplotGrob(plots[[1]] + theme(legend.position="bottom"))$grobs
+  legend <- g[[which(sapply(g, function(x) x$name) == "guide-box")]]
+  lheight <- sum(legend$height)
+  grid.arrange(
+    do.call(arrangeGrob, lapply(plots, function(x)
+      x + theme(legend.position="none"))),
+    legend,
+    ncol = 1,
+    heights = unit.c(unit(1, "npc") - lheight, lheight))
+}
+
+grid_arrange_shared_legend(b1, b2, b3, b4, b5, b6, b7, b8, nrow = 4)
+
+
+
+a1 = ggplot(b, aes(Class, fill = factor(`Clump_Thickness`))) + 
+  geom_bar(stat='count', position = 'stack') + ggtitle("Clump Thickness")
+
+a2 = ggplot(b, aes(Class, fill = factor(`Unif_of_Cell_Size`))) + 
+  geom_bar(stat='count', position = 'stack') + ggtitle("Unif of Cell Size")
+
+a3 = ggplot(b, aes(Class, fill = factor(`Unif_of_Cell_Shape`))) + 
+  geom_bar(stat='count', position = 'stack') + ggtitle("Unif of Cell Shape")
+
+a4 = ggplot(b, aes(Class, fill = factor(`Marg_Adhesion`))) + 
+  geom_bar(stat='count', position = 'stack') + ggtitle("Marginal Adhesion")
+
+a5 = ggplot(b, aes(Class, fill = factor(`Single_Epithelial_Cell_Size`))) + 
+  geom_bar(stat='count', position = 'stack') + ggtitle("Single Epith Cell Size") 
+
+a6 = ggplot(b, aes(Class, fill = factor(`Bare_Nuclei`))) + 
+  geom_bar(stat='count', position = 'stack') + ggtitle("Bare Nuclei")
+
+a7 = ggplot(b, aes(Class, fill = factor(`Bland_Chromatin`))) + 
+  geom_bar(stat='count', position = 'stack') + ggtitle("Bland Chromatin")
+
+a8 = ggplot(b, aes(Class, fill = factor(`Normal_Nucleoli`))) + 
+  geom_bar(stat='count', position = 'stack') + ggtitle("Normal Nucleoli")
+
+#Borrowed from 
+#https://github.com/tidyverse/ggplot2/wiki/Share-a-legend-between-two-ggplot2-graphs
+#this allowed me to group all graphs together into one
+
+grid_arrange_shared_legend <- function(...) {
+  plots <- list(...)
+  g <- ggplotGrob(plots[[1]] + theme(legend.position="bottom"))$grobs
+  legend <- g[[which(sapply(g, function(x) x$name) == "guide-box")]]
+  lheight <- sum(legend$height)
+  grid.arrange(
+    do.call(arrangeGrob, lapply(plots, function(x)
+      x + theme(legend.position="none"))),
+    legend,
+    ncol = 1,
+    heights = unit.c(unit(1, "npc") - lheight, lheight))
+}
+
+grid_arrange_shared_legend(a1, a2, a3, a4, a5, a6, a7, a8, nrow = 4)
+
+```
+
+###Clump_Thickness
+
+Benign cells tend to be grouped in mono-layers, while 
+cancerous cells are often grouped in multilayers.
+We can see that the number of people that had multilayers (greater 
+Clump_Thickness) resulted in having cancerous cells (malignant). 
+
+###Uniformity of cell size/shape
+
+Cancer cells tend to vary in size and shape. That is why these parameters are valuable in determining whether the cells are cancerous or not.
+We can see that the the bigger the cell size the more cancerous they are.
+The smaller the cell size, the more benign the results were. 
+
+###Marginal adhesion
+
+Normal cells tend to stick together. Cancer cells 
+tend to loose this ability. So loss of adhesion is a sign of 
+malignancy.We can see that on a scale of 1-10, 10 being the loss of adhesion and 
+as a result, more were malignant. Al thought, we do see a small amount 
+that did have the cells that stick together on a smaller scale still
+resulted in cancerous.
+
+I'm assuming that the reason why the Marginal Adhesion on the scale of 
+(1) was malignant was because other variables were more cancerous than
+Marginal Adhesion in this case.
+
+###Single epithelial cell size
+
+Is related to the uniformity mentioned 
+above. Epithelial cells that are significantly enlarged may be a 
+malignant cell. We can see that on a scale of 1-10, the larger the Epithelial cells are (5-10 on the scale) the more likely they are malignant.
+
+###Bare_Nuclei
+
+If an atom is deprived of all its extra nuclear electrons 
+orbiting around the nucleus then it is referred as bare nucleus.
+We can see those that were tested that had a higher lack of these extra 
+nuclear electrons, resulted in higher Bare_Nuclei.
+
+###Bland Chromatin
+
+Describes a uniform "texture" of the nucleus seen 
+in benign cells. In cancer cells the chromatin tends to be coarser.
+We can see that the coarser cells (5-10 on the scale) are malignant 
+than those that are more uniform.
+
+###Normal nucleoli
+
+Nucleoli are small structures seen in the nucleus. 
+In normal cells the nucleolus is usually very small if visible at all. 
+In cancer cells the nucleoli become more prominent, and sometimes 
+there are more of them. We can see that the more prominent nucleoli are those that are malignant. Those that are very small if visible at all are more benign.
+
+```{r}
+#LDA: Linear Transformation Techniques. Makes assumptions about normally distributed classes.
+lda_res <- lda(Class~., b, center = TRUE, scale = TRUE)
+lda_df <- predict(lda_res, b)$x %>% as.data.frame() %>% cbind(Class=b$Class)
+ggplot(lda_df, aes(x=LD1, fill=Class, color = factor(Class))) + geom_density(alpha=0.05)
+
+#LDA take in consideration the different classes and could get better results
+lda_res <- lda(Class~., b, center = TRUE, scale = TRUE) 
+lda_df <- predict(lda_res, b)$x %>% as.data.frame() %>% cbind(Class=b$Class)
+lda_res
+```
+LDA (Linear Discriminant Analysis) allows sets of observations to be explained by unobserved groups that explain why some parts of the data are similar. We can see in LD1 that the response variables are clearly separated and distinguished. The groups can be clearly distinguished between being benign or malignant. 
+
+```{r}
+#Correlation Matrix
+corr_mat <- cor(b[,3:ncol(b)])
+corrplot(corr_mat)
+```
+
+Here we can visually see the correlation between each of the variables. This helps determine if one variable results in a tumor being malignant and is highly correlated with another variable, then that other variable is most likely to result in a tumor being cancerous as well. 
+
+#Running Models
+
+
+```{r}
+# Training vs Test set: 75% Train (512), 25% Set (171)
+set.seed(25)
+train = sample(1:nrow(b), 512)
+
+b = as.data.frame(b)
+
+#Including only the variables we want to predict and
+#whether each of the observations are either Benign or Malignant
+X.b = b[, c('Clump_Thickness', 'Unif_of_Cell_Size', 'Unif_of_Cell_Shape', 
+            'Marg_Adhesion','Single_Epithelial_Cell_Size','Bare_Nuclei','Bland_Chromatin','Normal_Nucleoli','Mitosis')]
+Y.b = b[,'Class']
+
+dim(X.b)
+dim(Y.b)
+
+Xtrain = X.b[train,]
+Ytrain = Y.b[train]
+
+Xtest = X.b[-train,]
+Ytest = Y.b[-train]
+
+sum(is.na(Xtrain))
+sum(is.na(Xtest))
+sum(is.na(Ytrain))
+sum(is.na(Ytest))
+
+dim(Xtrain)
+dim(Xtest)
+dim(Ytrain)
+dim(Ytest)
+```
+Here I separated the data set into a training set and a test set. This is a base to have each of the models done below run the test set through and therefore we then can see the test error rate for each of the models. 
+
+##Knn
+
+
+```{r}
+set.seed(1)
+str(Ytrain)
+b = b %>% mutate(Class = as.factor(Class))
+myknn = knn(train=Xtrain, test=Xtest, cl=Ytrain, k=31)
+res <- table(predicted=myknn, true=Ytest)
+
+#Predicted Benign twice but it was Malignant; Predicted Malignant twice but was #Benign with Test error rate: .029239766
+res
+prop.table(res)
+
+
+#KNN process
+myknn1 = knn(train=Xtrain, test=Xtest, cl=Ytrain, k=31, prob = TRUE)
+knn.p=1-attr(myknn1, "prob")
+knn.roc <-prediction(knn.p, Ytest) 
+knn.perf <-performance(knn.roc, measure = "tpr", x.measure = "fpr")
+roc.knn <- data.frame(fpr=unlist(knn.perf@x.values), tpr=unlist(knn.perf@y.values), model="GLM")
+```
+In pattern recognition, the k-nearest neighbors algorithm (k-NN) is a non-parametric method used for classification and regression.In both cases, the input consists of the k closest training examples in the feature space. The output depends on whether k-NN is used for classification or regression Test Error Rate. Based on the KNN model, we had a test error rate of: .04678363
+
+##ROC Curve KNN
+
+
+```{r}
+ggplot(data = roc.knn, aes(x = fpr, ymin = 0, ymax = tpr)) + ggtitle("Knn ROC Curve") +
+  geom_line(aes(y = tpr))
+```
+
+Here is our ROC curve for our KNN model. The curve is created by plotting the true positive rate (TPR) against the false positive rate (FPR) at various threshold settings. Basically the more area below the curve the better. Here we see that the KNN model .
+
+##Decision Trees Process
+
+
+```{r}
+set.seed(12)
+training_set_dt = b[train,]
+test_set_dt = b[-train,]
+bt <- rpart(Class~., data = b, subset = train, method = 'class') 
+summary(bt)
+bt
+
+#Plot the decision tree
+fancyRpartPlot(bt)
+
+#Next we create a table to compare the predicted vs actual values
+bt.pred=predict(bt, training_set_dt, type="class")
+
+table(bt.pred, Ytrain)
+prop.table(table(bt.pred, Ytrain))
+#Thus we have the training error rate as 0.03515625 for our decision tree model!
+
+#ROC Estimations for Decision Trees
+tree.pred = predict(bt, test_set_dt, type = 'class')
+
+# Reformatting the values to ensure they come out nicely formatted
+tree.pred = plyr::revalue(tree.pred, c("2" = "Benign", "4" = "Malignant"))
+test_set_dt$Class = plyr::revalue(test_set_dt$Class, c("2" = "Benign", "4" = "Malignant"))
+bt.pred = prediction(as.numeric(tree.pred), as.numeric(test_set_dt$Class))
+perf.tree <-performance(bt.pred, measure = "tpr", x.measure = "fpr")
+
+
+auc.dt <- performance(bt.pred, measure = "auc")
+auc.dt <- auc.dt@y.values[[1]]
+
+roc.data <- data.frame(fpr=unlist(perf.tree@x.values),
+                       tpr=unlist(perf.tree@y.values),
+                       model="GLM")
+
+ggplot(roc.data, aes(x=fpr, ymin=0, ymax=tpr)) +
+  geom_ribbon(alpha=0.2) +
+  geom_line(aes(y=tpr)) + theme_minimal() +
+  ggtitle(paste0("Decision Tree ROC Curve w/ AUC=", round(auc.dt, digits = 3)))
+#AUC:Area Under the Curve
+```
+###Decision Tree Results
+
+A decision tree is a decision support tool that uses a tree-like graph or model of decisions and their possible consequences, including chance event outcomes, resource costs, and utility. It is one way to display an algorithm. Based on this model, the top three most important variables are: Uniformity of Cell size, Uniformity of Cell Shape, and Bare Nuclei.Also observed is the test error rate: 0.03515625
+
+##Random Forest
+
+
+```{r}
+b$Class <- plyr::revalue(b$Class, c("2" = "Malignant", "4" = "Benign"))
+ctrl <- trainControl(method="cv", 
+                     summaryFunction=twoClassSummary, 
+                     classProbs=T,
+                     savePredictions = T)
+set.seed(16)  
+rf1 <- train(Class ~ ., data = b, method = "rf", preProcess = c("scale", "center"), trControl = ctrl)  
+
+feature_imp <- function(model, title) {
+  
+  # estimate variable importance
+  importance <- varImp(model, scale = TRUE)
+  
+  # prepare dataframes for plotting
+  importance_df_1 <- importance$importance
+  importance_df_1$group <- rownames(importance_df_1)
+  
+  importance_df_2 <- importance_df_1
+  importance_df_2$Overall <- 0
+  
+  importance_df <- rbind(importance_df_1, importance_df_2)
+  
+  plot <- ggplot() +
+    geom_point(data = importance_df_1, aes(x = Overall, y = group, color = group), size = 2) +
+    geom_path(data = importance_df, aes(x = Overall, y = group, color = group, group = group), size = 1) +
+    theme_minimal() + 
+    theme(legend.position = "none") +
+    labs(
+      x = "Importance",
+      y = "",
+      title = title,
+      subtitle = "Scaled feature importance",
+      caption = "\nDetermined with Random Forest and
+      repeated cross validation (10 repeats, 10 times)"
+    ) 
+  
+  return(plot)
+}
+
+p1 <- feature_imp(rf1, title = "Breast cancer dataset")
+
+plot(p1)
+
+rf1
+```
+
+##RF ROC Process
+
+
+```{r}
+# Select a parameter setting
+selectedIndices <- rf1$pred$mtry == 2
+# Plot:
+plot.roc(rf1$pred$obs[selectedIndices],
+         rf1$pred$M[selectedIndices]) 
+rect(0, 1.1, 1, 1.7, xpd=TRUE, col="white", border="white")
+title("Random Forest ROC Curve")
+```
+
+Random forests or random decision forests are an ensemble learning method for classification, regression and other tasks, that operate by constructing a multitude of decision trees at training time and outputting the class that is the mode of the classes (classification) or mean prediction (regression) of the individual trees. Random decision forests correct for decision trees' habit of over-fitting to their training set.
+
+Based on the chart, we see that the most important variables that determine 
+breast cancer and whether it is benign or malignant are: Unif of cell shape 
+and size, and Bare Nuclei.
+
+The process of Random Forest (RF), repeated cross validation 10X and each time 
+time pulls out 75% and 25% for the test set to predict which variable is the most
+important each of the 10X's and then graphs it based on the results
+
+```{r}
+#Results:
+rt <- matrix(c(.04678363, 0.03515625, 0.0117), ncol = 3, byrow = TRUE)
+colnames(rt) <- c("Knn", "DT", "RF")
+rownames(rt) <- c("Test Error Rate:")
+
+rt
+```
+#Conclusion
+
+We can see that based on the test error rate, it was found that Random Forest was the best model with an error rate of 1.17%. Because the test set we used experimented with the given results, it provided us with an efficient model to use. My goal was to find a model that best predicted whether the cancer was benign or malignant. I feel that with an error rate of 1.17%, and using the Random Forest model, being able to predict whether the cancer was benign or malignant will be very efficient. This model will help physicians become more efficient with their results. I would have liked to do further analysis of the data, if possible, to see whether the cancer can be prevented given the stage of the cancer. Providing an efficient model to determine whether cancer is benign or malignant is absolutely necessary when physicians are determining a life threatening disease like breast cancer. 
+
+#References
+
+"Decision Tree." Wikipedia. Wikimedia Foundation, 17 Mar. 2017. Web. 21 Mar. 2017.
+
+"Introduction to R Graphics with Ggplot2." Introduction to R Graphics with Ggplot2. N.p., n.d. Web. 21 Mar. 2017.
+
+"K-nearest Neighbors Algorithm." Wikipedia. Wikimedia Foundation, 14 Mar. 2017. Web. 21 Mar. 2017.
+
+"Random Forest." Wikipedia. Wikimedia Foundation, 14 Mar. 2017. Web. 21 Mar. 2017.
+
+"Random Forest Usage." Classification - Random Forest Usage - Cross Validated. N.p., n.d. Web. 21 Mar. 2017.
+
+"Simple KNN Example." Machine Learning - Simple KNN Example - Cross Validated. N.p., n.d. Web. 21 Mar. 2017.
+
+Tidyverse. "Tidyverse/ggplot2." GitHub. N.p., n.d. Web. 21 Mar. 2017.
+
+"Titanic: Getting Started With R - Part 3: Decision Trees." Trevor Stephens. N.p., 12 Jan. 2014. Web. 21 Mar. 2017.
+
+"UCI Machine Learning Repository: Breast Cancer Wisconsin (Original) Data Set." UCI Machine Learning Repository: Breast Cancer Wisconsin (Original) Data Set. N.p., n.d. Web. 21 Mar. 2017.
+
+
+
+
+
+
+
+
